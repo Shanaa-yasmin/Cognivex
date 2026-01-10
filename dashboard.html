@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognivex Dashboard</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Supabase + Auth scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+
+    <script>
+        // Authenticate user before loading dashboard features
+        document.addEventListener('DOMContentLoaded', () => {
+            const waitForAuth = setInterval(async () => {
+                if (window.supabaseClient && window.authHandler) {
+                    clearInterval(waitForAuth);
+
+                    const supabase = window.supabaseClient;
+
+                    try {
+                        const { data, error } = await supabase.auth.getSession();
+                        if (error) throw error;
+
+                        if (!data.session) {
+                            console.log('No active session. Redirecting to login.');
+                            window.location.href = 'index.html';
+                            return;
+                        }
+
+                        console.log('Authenticated session detected.');
+
+                        // Load behavioral monitoring only after auth
+                        const script = document.createElement('script');
+                        script.src = 'js/behavior.js';
+                        document.body.appendChild(script);
+
+                    } catch (err) {
+                        console.error('Dashboard auth error:', err);
+                        window.location.href = 'index.html';
+                    }
+                }
+            }, 100);
+        });
+    </script>
+</head>
+
+<body class="dashboard">
+<header class="header">
+    <div class="logo">Cognivex</div>
+
+    <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span>Session Active – Behavioral Monitoring Enabled</span>
+    </div>
+
+    <button class="btn btn-text" onclick="window.authHandler.logout()">Sign Out</button>
+</header>
+
+<main class="main-content">
+
+    <section class="text-input-section">
+        <h2>Research Notes</h2>
+
+        <textarea
+            id="researchNotes"
+            class="text-input"
+            placeholder="Type your research notes here..."
+            rows="8"
+        ></textarea>
+
+        <div class="button-group">
+            <button id="viewTextBtn" class="btn btn-secondary">View Entered Text</button>
+            <button id="clearTextBtn" class="btn btn-text">Clear</button>
+        </div>
+    </section>
+
+    <section class="content-section">
+        <h3>Research Content</h3>
+        <div class="scrollable-content" id="researchContent">
+            <p>
+                Behavioral biometrics enables continuous authentication by
+                monitoring user interaction patterns in real time.
+            </p>
+        </div>
+    </section>
+
+</main>
+
+<!-- Modal -->
+<div id="textModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Your Entered Text</h3>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="enteredTextDisplay" class="display-text"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const content = document.getElementById('researchContent');
+    const researchNotes = document.getElementById('researchNotes');
+    const viewTextBtn = document.getElementById('viewTextBtn');
+    const clearTextBtn = document.getElementById('clearTextBtn');
+    const modal = document.getElementById('textModal');
+    const closeBtn = document.querySelector('.close-modal');
+    const enteredTextDisplay = document.getElementById('enteredTextDisplay');
+
+    const paragraphs = [
+        "Zero Trust Architecture enforces strict identity verification.",
+        "Behavioral biometrics provides continuous authentication.",
+        "ZTNA reduces lateral movement risks.",
+        "Keystroke and mouse dynamics enhance security.",
+        "Anomaly detection identifies unauthorized access."
+    ];
+
+    paragraphs.forEach(text => {
+        const p = document.createElement('p');
+        p.textContent = text;
+        content.appendChild(p);
+    });
+
+    viewTextBtn.addEventListener('click', () => {
+        enteredTextDisplay.textContent =
+            researchNotes.value || 'No text entered.';
+        modal.style.display = 'block';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    clearTextBtn.addEventListener('click', () => {
+        researchNotes.value = '';
+    });
+
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+});
+</script>
+
+</body>
+</html>
