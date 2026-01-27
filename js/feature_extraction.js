@@ -62,41 +62,43 @@ function extractFeatures(keyEvents, mouseEvents, scrollEvents) {
     const typingSpeed = totalKeys / windowDuration;
     const backspaceRatio = totalKeys ? backspaces / totalKeys : 0;
 
-    // ================= SCROLL + FOCUS =================
+    // Keystroke interval (time between keys)
+    let keystrokeTimes = [];
+    for (let i = 1; i < keyEvents.length; i++) {
+        const timeDiff = timeDiffSeconds(keyEvents[i - 1].timestamp, keyEvents[i].timestamp);
+        if (timeDiff > 0) keystrokeTimes.push(timeDiff);
+    }
+
+    const avgKeystrokeInterval = keystrokeTimes.length > 0
+        ? keystrokeTimes.reduce((a, b) => a + b, 0) / keystrokeTimes.length
+        : 0;
+
+    const keystrokeVariance = keystrokeTimes.length > 0
+        ? keystrokeTimes.reduce((s, v) => s + Math.pow(v - avgKeystrokeInterval, 2), 0) / keystrokeTimes.length
+        : 0;
+
+    // ================= SCROLL =================
     const scrolls = scrollEvents.filter(e => e.type === "SCROLL");
     const scrollFrequency = scrolls.length / windowDuration;
 
-    const focusEvents = scrollEvents.filter(
-        e => e.type === "FOCUS" || e.type === "BLUR"
-    );
-
-    let focusedTime = 0;
-    for (let i = 1; i < focusEvents.length; i++) {
-        if (focusEvents[i - 1].type === "FOCUS") {
-            focusedTime += timeDiffSeconds(
-                focusEvents[i - 1].timestamp,
-                focusEvents[i].timestamp
-            );
-        }
-    }
-
-    const focusRatio = focusedTime / windowDuration;
+    // ================= IDLE =================
     const activeEvents = keyEvents.length + mouseEvents.length + scrolls.length;
     const idleRatio = 1 - Math.min(1, activeEvents / (windowDuration * 5));
 
+    // Window features for ML training
     const windowFeatures = {
-        avg_mouse_speed: avgMouseSpeed,
-        mouse_move_variance: mouseVariance,
         typing_speed: typingSpeed,
         backspace_ratio: backspaceRatio,
+        avg_keystroke_interval: avgKeystrokeInterval,
+        keystroke_variance: keystrokeVariance,
+        avg_mouse_speed: avgMouseSpeed,
+        mouse_move_variance: mouseVariance,
         scroll_frequency: scrollFrequency,
-        focus_ratio: focusRatio,
-        idle_ratio: idleRatio,
-        window_duration: windowDuration
+        idle_ratio: idleRatio
     };
 
-    accumulateSession(windowFeatures); // 🔑 important
-    return windowFeatures; // used for anomaly detection
+    accumulateSession(windowFeatures);
+    return windowFeatures;
 }
 
 // ----------------------------
@@ -127,16 +129,15 @@ function getSessionSummary() {
         );
     }
 
-    summary.window_duration = Math.round(summary.window_duration);
     summary.total_windows = sessionStats.windows;
     summary.generated_at = new Date().toISOString();
 
     console.log("✅ Final Session Summary:", summary);
-    return summary; // 👉 store THIS in DB
+    return summary;
 }
 
 // ----------------------------
-// RESET SESSION (for new session)
+// RESET SESSION
 // ----------------------------
 function resetSession() {
     sessionStats = {
